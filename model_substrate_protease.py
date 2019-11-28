@@ -810,15 +810,13 @@ def run_model_complete(model,rosetta_path,folder_path):
 if __name__ == '__main__':
     
     # Script arguments
-    # parser = argparse.ArgumentParser(description='Prediction of core regions of peptides bound to MHC class II and modelling of peptides based on crystal template')
+    # parser = argparse.ArgumentParser(description='Package to model peptide substrates bound to annotated protease structures')
     # parser.add_argument('-l', dest='list_pep', action='store',required=True,
     #                     help='List with the peptides that want to be analyzed')
     # parser.add_argument('-m', dest='mode', action='store', default="core",
     #                     help='Choose a mode to run the script from thee options: 1) core, 2) model, 3) backrub')
     # parser.add_argument('-r', dest='rosetta', action='store', default="rosetta_src_2016.32.58837_bundle",
     #                     help='Version of Rosetta that will be implemented')
-    # parser.add_argument('-a', dest='allele', action='store', default="0101",
-    #                     help='Allele of the MHC class II DRB1 that will be selected from four options: 1) 0101, 2) 0301, 3) 0401, 4) 1501')
     # parser.add_argument('-o', dest='output', action='store', default="stats_peptide_models.txt",
     #                     help='Name of the output file with the statistics results')
     # args = parser.parse_args()
