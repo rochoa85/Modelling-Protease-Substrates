@@ -1,6 +1,8 @@
+#!/usr/bin/python3
+
 """
 Package to model peptide substrates bound to annotated protease structures
-NOTE: The protocol requires of auxiliary programas and Unix system commands - Tested on Ubuntu 16.04
+NOTE: The protocol requires of auxiliary programs and Unix system commands - Tested on Ubuntu 16.04
 
 From publication "Modelling peptide substrates bound to proteases: insights to study binding promiscuity"
 Journal: PLoS Computational Biology
@@ -9,8 +11,8 @@ Year: 2020
 
 Third-party tools required:
 
-BioPython: https://biopython.org/wiki/Download - Ubuntu package: python-rdkit
-RDKit: https://github.com/rdkit/rdkit/releases - Ubuntu package: python-biopython
+BioPython: https://biopython.org/wiki/Download - Ubuntu package: python3-biopython
+RDKit: https://github.com/rdkit/rdkit/releases
 Modeller: https://salilab.org/modeller/download_installation.html
 """
 
@@ -146,11 +148,11 @@ def modelling_fragment(pdb,pep_chain,pepT,pepM,rosetta_path,folder_path,new_aa=N
     
     # Check if an amino acid was mutated to select the input structure accordingly
     if new_aa:
-        os.system('cp models/%s/%s_%s_modelled.pdb .' %(folder_path,pdb,new_aa))
-        code = '%s_%s_modelled' %(pdb,new_aa)
+        os.system('cp models/{}/{}_{}_modelled.pdb .'.format(folder_path,pdb,new_aa))
+        code = '{}_{}_modelled'.format(pdb,new_aa)
     else:
-        os.system('cp models/%s/%s_relaxed.pdb .' %(folder_path,pdb))
-        code = '%s_relaxed' %pdb
+        os.system('cp models/{}/{}_relaxed.pdb .'.format(folder_path,pdb))
+        code = '{}_relaxed'.format(pdb)
     
     # Start Modeller environment and write the sequence file 
     e = modeller.environ()
@@ -179,31 +181,31 @@ def modelling_fragment(pdb,pep_chain,pepT,pepM,rosetta_path,folder_path,new_aa=N
     seqModList = [sequenceMod[i:i+75] for i in range(0, len(sequenceMod), 75)]
     
     # Create the alignment file
-    alignmentFile=open("alignment.ali","wb")
+    alignmentFile=open("alignment.ali","w")
     for h in header: alignmentFile.write(h+"\n")
     for s in seqTempList: alignmentFile.write(s+"\n")
-    alignmentFile.write("\n>P1;%s_fill\nsequence:::::::::\n" %code)
+    alignmentFile.write("\n>P1;{}_fill\nsequence:::::::::\n".format(code))
     for s in seqModList: alignmentFile.write(s+"\n")
     alignmentFile.close()
     
     # Directories for input atom files
     e.io.atom_files_directory = ['.', '../atom_files']
-    a = automodel(e, alnfile='alignment.ali', knowns='%s' %code, sequence='%s_fill' %code)
+    a = automodel(e, alnfile='alignment.ali', knowns='{}'.format(code), sequence='{}_fill'.format(code))
     a.starting_model= 1
     a.ending_model  = 1
     a.make()
     
     # Relaxing of the final complex
-    os.system("%s/main/source/bin/relax.default.linuxgccrelease -database %s/main/database -in:file:s %s_fill.B99990001.pdb -relax:thorough -relax:bb_move false" %(rosetta_path,rosetta_path,code))
+    os.system("{}/main/source/bin/relax.default.linuxgccrelease -database {}/main/database -in:file:s {}_fill.B99990001.pdb -relax:thorough -relax:bb_move false".format(rosetta_path,rosetta_path,code))
     parser = PDBParser()
-    structure = parser.get_structure('REF',"%s_fill.B99990001_0001.pdb" %code)
+    structure = parser.get_structure('REF',"{}_fill.B99990001_0001.pdb".format(code))
     io = PDBIO()
     io.set_structure(structure)
     io.save("post-modelled.pdb")
     
     # Deleter temporal files and save final model in the route of interest
-    os.system("rm %s* score.sc resfile.config alignment.ali " %code)
-    os.system("mv post-modelled.pdb models/%s/%s_%s_modelled.pdb" %(folder_path,pdb,pepM))    
+    os.system("rm {}* score.sc resfile.config alignment.ali ".format(code))
+    os.system("mv post-modelled.pdb models/{}/{}_{}_modelled.pdb".format(folder_path,pdb,pepM))    
 
 ##################################################################################
 
@@ -227,8 +229,8 @@ def replace_amino_acid_natural(pep_pdb,pep_chain,old_aa,new_aa,pep_position):
     chain=pep_pdb[0][pep_chain]
     
     # Report the mutation made
-    message="The residue %s in chain %s and position %d will be changed by %s" %(old_aa,pep_chain,pep_position,new_aa)
-    print message
+    message="The residue {} in chain {} and position {} will be changed by {}".format(old_aa,pep_chain,pep_position,new_aa)
+    print(message)
     
     # Rename the residue
     chain[pep_position].resname=new_aa
@@ -285,28 +287,28 @@ def replace_amino_acid(pep_pdb,pep_chain,old_aa,new_aa,pep_position):
         if resPos==pep_position:
             # Put the new name
             residue.resname=new_aa
-            print residue.get_full_id()
+            print(residue.get_full_id())
         
     # Delete the other atoms leaving only the atoms of the backbone
     ids=[]
     atom_numbers=[]
     atom_reference=0
     # Special code for manipulating non-natural amino acids in the PDB
-    for c,a in enumerate(chain[("H_%s" %old_aa,pep_position," ")]):
+    for c,a in enumerate(chain[("H_{}".format(old_aa),pep_position," ")]):
         atomId=a.id
         if c==0:
             atom_reference=a.serial_number
         if atomId not in mod_amino_backbone[old_aa]: ids.append(atomId)
-    for i in ids: chain[("H_%s" %old_aa,pep_position," ")].detach_child(i)
+    for i in ids: chain[("H_{}".format(old_aa),pep_position," ")].detach_child(i)
      
     # Append the corresponding atoms
-    for a in chain[("H_%s" %old_aa,pep_position," ")]:
+    for a in chain[("H_{}".format(old_aa),pep_position," ")]:
         if old_aa in mod_amino_changes:
             for ch in mod_amino_changes[old_aa]:
                 if ch[0]==a.id:
-                    a.fullname=' %s' %ch[1]
-                    a.name=' %s' %ch[1]
-                    a.element='%s' %ch[2]   
+                    a.fullname=' {}'.format(ch[1])
+                    a.name=' {}'.format(ch[1])
+                    a.element='{}'.format(ch[2])
         atom_numbers.append(a.serial_number)
     
     
@@ -318,13 +320,13 @@ def replace_amino_acid(pep_pdb,pep_chain,old_aa,new_aa,pep_position):
     # Replace in the file the HETATM flags by ATOM records
     for i,num in enumerate(atom_numbers):
         if len(str(num))==4:
-            os.system("sed -i 's#HETATM %d#ATOM   %d#g' pre-mutated.pdb" %(atom_reference+i,atom_reference+i))
+            os.system("sed -i 's#HETATM {atom}#ATOM   {atom}#g' pre-mutated.pdb".format(atom=atom_reference+i))
         if len(str(num))==3:
-            os.system("sed -i 's#HETATM  %d#ATOM    %d#g' pre-mutated.pdb" %(atom_reference+i,atom_reference+i))
+            os.system("sed -i 's#HETATM  {atom}#ATOM    {atom}#g' pre-mutated.pdb".format(atom=atom_reference+i))
         if len(str(num))==2:
-            os.system("sed -i 's#HETATM   %d#ATOM     %d#g' pre-mutated.pdb" %(atom_reference+i,atom_reference+i))
+            os.system("sed -i 's#HETATM   {atom}#ATOM     {atom}#g' pre-mutated.pdb".format(atom=atom_reference+i))
         if len(str(num))==1:
-            os.system("sed -i 's#HETATM    %d#ATOM      %d#g' pre-mutated.pdb" %(atom_reference+i,atom_reference+i))
+            os.system("sed -i 's#HETATM    {atom}#ATOM      {atom}#g' pre-mutated.pdb".format(atom=atom_reference+i))
     
     # Save the pre-mutated file
     os.system("grep -v HETATM pre-mutated.pdb > temp; mv temp pre-mutated.pdb")
@@ -352,14 +354,14 @@ def mutateRosetta(pdb,pep_chain,new_aa,pep_position,rosetta_path,folder_path):
                 "ASN":"N","PRO":"P","GLN":"Q","ARG":"R","SER":"S","THR":"T","VAL":"V","TRP":"W","TYR":"Y","CYS":"C"}
     
     # Create Rosetta configuration file
-    rosetta_config_file=open("resfile.config","wb")
+    rosetta_config_file=open("resfile.config","w")
     rosetta_config_file.write("NATRO\n")
     rosetta_config_file.write("start\n")
-    rosetta_config_file.write("\t%s %s PIKAA %s EX 1 EX 2 EX 3 EX 4 EX_CUTOFF 0\n" %(pep_position,pep_chain,aminoacids[new_aa]))
+    rosetta_config_file.write("\t{} {} PIKAA {} EX 1 EX 2 EX 3 EX 4 EX_CUTOFF 0\n".format(pep_position,pep_chain,aminoacids[new_aa]))
     rosetta_config_file.close()
     
     # Run the fixbb tool to mutate the amino acid
-    os.system("%s/main/source/bin/fixbb.default.linuxgccrelease -in:file:s pre-mutated.pdb -resfile resfile.config" %rosetta_path)
+    os.system("{}/main/source/bin/fixbb.default.linuxgccrelease -in:file:s pre-mutated.pdb -resfile resfile.config".format(rosetta_path))
     parser = PDBParser()
     structure = parser.get_structure('REF',"pre-mutated_0001.pdb")
     io = PDBIO()
@@ -367,7 +369,7 @@ def mutateRosetta(pdb,pep_chain,new_aa,pep_position,rosetta_path,folder_path):
     io.save("post-pre-mutated.pdb")
     
     # Relax the generated structure
-    os.system("%s/main/source/bin/relax.default.linuxgccrelease -database %s/main/database -in:file:s post-pre-mutated.pdb -relax:thorough -relax:bb_move false" %(rosetta_path,rosetta_path))
+    os.system("{rosetta}/main/source/bin/relax.default.linuxgccrelease -database {rosetta}/main/database -in:file:s post-pre-mutated.pdb -relax:thorough -relax:bb_move false".format(rosetta=rosetta_path))
     parser = PDBParser()
     structure = parser.get_structure('REF',"post-pre-mutated_0001.pdb")
     io = PDBIO()
@@ -376,7 +378,7 @@ def mutateRosetta(pdb,pep_chain,new_aa,pep_position,rosetta_path,folder_path):
     
     # Delete temporal files and save the model with NNAA replace by a natural amino acid
     os.system("rm pre-mutated.pdb pre-mutated_0001.pdb post-pre-mutated.pdb post-pre-mutated_0001.pdb score.sc resfile.config")
-    os.system("mv post-mutated.pdb models/%s/%s_%s_modelled.pdb" %(folder_path,pdb,new_aa))
+    os.system("mv post-mutated.pdb models/{}/{}_{}_modelled.pdb".format(folder_path,pdb,new_aa))
 
 ################################################################################
 
@@ -394,10 +396,10 @@ def relax_ready(pdb,rosetta_path,folder_path):
     """
     
     # Copy the structure of reference
-    os.system("grep -v HETATM auxiliar/prepared_structures/%s_fixed.pdb > post-pre-mutated.pdb" %pdb)
+    os.system("grep -v HETATM auxiliar/prepared_structures/{}_fixed.pdb > post-pre-mutated.pdb".format(pdb))
     
     # Run the relax protocol
-    os.system("%s/main/source/bin/relax.default.linuxgccrelease -database %s/main/database -in:file:s post-pre-mutated.pdb -relax:thorough -relax:bb_move false" %(rosetta_path,rosetta_path))
+    os.system("{rosetta}/main/source/bin/relax.default.linuxgccrelease -database {rosetta}/main/database -in:file:s post-pre-mutated.pdb -relax:thorough -relax:bb_move false".format(rosetta=rosetta_path))
     parser = PDBParser()
     structure = parser.get_structure('REF',"post-pre-mutated_0001.pdb")
     io = PDBIO()
@@ -406,7 +408,7 @@ def relax_ready(pdb,rosetta_path,folder_path):
     
     # Delete temporal files and save the relaxed structure
     os.system("rm post-pre-mutated.pdb post-pre-mutated_0001.pdb score.sc resfile.config")
-    os.system("mv post-mutated.pdb models/%s/%s_relaxed.pdb" %(folder_path,pdb))
+    os.system("mv post-mutated.pdb models/{}/{}_relaxed.pdb".format(folder_path,pdb))
 
 ################################################################################
 
@@ -444,7 +446,7 @@ def similarity(smiles,aaComp):
         similarities[aa]=similarity
     
     # Return the similarity value of interest
-    return "%0.3f" %similarities[aaComp]
+    return "{}".format(similarities[aaComp])
 
 ####################################################################################
 
@@ -484,7 +486,7 @@ def modelling(list_struct,user,password,database):
         if mer not in substrates_chosen: substrates_chosen[mer]=[]
         
         # Run the MySQL query
-        query="select * from Substrate_search where code='%s'" %mer  
+        query="select * from Substrate_search where code='{}'".format(mer)  
         cur = con.cursor()
         cur.execute(query)
         results=cur.fetchall()
@@ -558,7 +560,7 @@ def modelling(list_struct,user,password,database):
                     array_info=[protein,mer,pepTemplate,pepModel,old_aa,new_aa,aa_position,ligand_chain,uniprot]
                     if array_info not in list_to_model_final:
                         list_to_model_final.append(array_info)
-                        print array_info
+                        print(array_info)
     
     # Return the list with the structures to model
     return list_to_model_final
@@ -602,7 +604,7 @@ def modelling_complete(list_struct,sim_threshold,user,password,database):
         if mer not in substrates_chosen: substrates_chosen[mer]=[]
         
         # Run the MySQL query
-        query="select * from Substrate_search where code='%s'" %mer
+        query="select * from Substrate_search where code='{}'".format(mer)
         cur = con.cursor()
         cur.execute(query)
         results=cur.fetchall()
@@ -621,7 +623,7 @@ def modelling_complete(list_struct,sim_threshold,user,password,database):
             if amino not in aminoacids:
                 old_aa=amino
                 database=open("auxiliar/components.cif","r").read()
-                index = re.findall('%s SMILES_CANONICAL CACTVS.*$' %old_aa, database,re.MULTILINE)
+                index = re.findall('{} SMILES_CANONICAL CACTVS.*$'.format(old_aa), database,re.MULTILINE)
                 smiles=index[0].strip().split()[-1].strip("\"")
                 for aa in aminoacids:
                     # Run the similarity function
@@ -690,7 +692,7 @@ def modelling_complete(list_struct,sim_threshold,user,password,database):
                         # Check the similarity threshold to store the data
                         if sim >= sim_threshold:
                             list_to_model_final.append(array_info)
-                            print array_info
+                            print(array_info)
     
     # Return the list with the structures to model
     return list_to_model_final
@@ -734,8 +736,8 @@ def run_model(model,rosetta_path,folder_path):
     # If an amino acid require to be mutated, run the mutation protocol
     if new_aa:   
         parser = PDBParser()
-        reference = parser.get_structure('REF',"models/%s/%s_relaxed.pdb" %(folder_path,pdb))
-        print reference,chain_aa,old_aa,new_aa,pos_aa
+        reference = parser.get_structure('REF',"models/{}/{}_relaxed.pdb".format(folder_path,pdb))
+        print(reference,chain_aa,old_aa,new_aa,pos_aa)
         replace_amino_acid_natural(reference,chain_aa,old_aa,new_aa,pos_aa)
         mutateRosetta(pdb,chain_aa,new_aa,pos_aa,rosetta_path,folder_path)
         
@@ -785,8 +787,8 @@ def run_model_complete(model,rosetta_path,folder_path):
     
     # Run the mutation protocol
     parser = PDBParser()
-    reference = parser.get_structure('REF',"auxiliar/prepared_structures/%s_fixed.pdb" %pdb)
-    print reference,chain_aa,old_aa,new_aa,pos_aa
+    reference = parser.get_structure('REF',"auxiliar/prepared_structures/{}_fixed.pdb".format(pdb))
+    print(reference,chain_aa,old_aa,new_aa,pos_aa)
     replace_amino_acid(reference,chain_aa,old_aa,new_aa,pos_aa)
     mutateRosetta(pdb,chain_aa,new_aa,pos_aa,rosetta_path,folder_path)
     
@@ -824,7 +826,7 @@ if __name__ == '__main__':
     ####################################################################################
     # Assignment of parameters
     rosetta_version="rosetta_src_2016.32.58837_bundle"
-    bash = "locate -b %s | head -n1" %rosetta_version
+    bash = "locate -b {} | head -n1".format(rosetta_version)
     rosetta_path = subprocess.check_output(['bash','-c', bash]).strip()
     
     # MySQL data
@@ -839,8 +841,8 @@ if __name__ == '__main__':
     # Run the modelling process for the complexes with NNAAs
     sim_threshold=0.4
     list_to_model=modelling_complete(model,sim_threshold,user,password,database) # PENDING READY
-    print "######################"
-    print list_to_model
+    print("######################")
+    print(list_to_model)
     
     # Iterate over the elements of the list. Here the user can decide which models want to generate based on the list content
     # NOTE: This part should be modified to preselect the models based on the required criteria
@@ -849,14 +851,14 @@ if __name__ == '__main__':
         run_model_complete(model,rosetta_path,"model_complete")
         break
     
-    # Run the modelling process for the complexes with natural amino acids
-    list_to_model=modelling(ready,user,password,database)
-    print "######################"
-    print list_to_model
-    
-    # Iterate over the elements of the list. Here the user can decide which models want to generate based on the list content
-    # NOTE: This part should be modified to preselect the models based on the required criteria
-    # Example just running the first element
-    for model in list_to_model:
-        run_model(model,rosetta_path,"model_ready")
-        break
+    # # Run the modelling process for the complexes with natural amino acids
+    # list_to_model=modelling(ready,user,password,database)
+    # print("######################")
+    # print(list_to_model)
+    # 
+    # # Iterate over the elements of the list. Here the user can decide which models want to generate based on the list content
+    # # NOTE: This part should be modified to preselect the models based on the required criteria
+    # # Example just running the first element
+    # for model in list_to_model:
+    #     run_model(model,rosetta_path,"model_ready")
+    #     break
