@@ -1,4 +1,4 @@
-# Modelling-Protease-Substrates
+# Modelling and sample protease substrates
 
 ## Package to model peptide substrates bound to annotated protease structures and run promiscuity analysis
 
@@ -37,8 +37,8 @@ The database can be downloaded from: ftp://ftp.ebi.ac.uk/pub/databases/merops/cu
 
 - Then from the command line, import the schema as:
 
-`mysql -u username -p merops < merops.sql (you can put here your user name and the password after prompted in the terminal)`
-
+`mysql -u username -p merops < merops.sql`
+You can put here your user name and the password after prompted in the terminal.
 **The user, password and MEROPS database name should be provided in the script to run the analysis succesfully**
 
 ## How to run the modelling script
@@ -75,24 +75,27 @@ optional arguments:
   -d DATABASE        Name of the local installation of the MEROPS database
  ```
  
-The only required argument is the file containing the peptides. For the other parameters the script has default values. **However, please be aware of changing the Rosetta version through the flag or directly in the script by default.**
+The required arguments are the information required to access the mySQL MEROP database. For the other parameters the script has default values, including a PDB of reference in case is part of the annotated proteases, or just run the models for all the families and structures present in the dataset. **However, please be aware of changing the Rosetta version through the flag or directly in the script by default.**
 
 ## Examples
 
-### Predict core regions
+### Model a peptide based on a substrate composed of natural amino acids
 
-In case the user want to predict the core region of several peptides, the way to run the script is:
+The modelling of substrates bound to proteases has two main modes of running. One involves the selection of proteases bound to peptides composed of natural amino acids (called *ready* in the script). The second mode is when the substrate has one non-natural amino acids (NNAA) to modify. The following is a command example for the first case:
 
-`python3.5 model_peptides_MHC_complexes.py -l list_peptides.txt -m core`
+`python3.5 model_substrate_protease.py -f serine -n 1 -m ready -u user -p password -d merops`
 
-After that, the results can be seen in the screen as (the results are also saved in an output file):
+In this case, we are allowing the modelling of only 1 substrate per structure available in the dataset bound to peptides with natural amino acids. For this script two families are available: serine and cysteine proteases. Here we selected serine as the reference family. Finally the MEROPS credentials are provided to look for reported substrates
+
+After that, the models will be stored in **models/model_ready** with the name [structure]\_[substrate sequence].pdb, where the structure is the PDB id and the substrate sequence is the peptides that was fully modelled using the protocol. A report of the model is provided in the following form:
 ```
-Original peptide sequence: IPTAFSIGKTYKPEE
-Predicted core with structural descriptors:  FSIGKTYKP
-Predicted core with sequence-based motifs:  SIGKTYKPE
+pdb,pepTemplate,pepModel,chain,merops,old_aa,new_aa,pos_aa,uniprot
+1smf,-CAKSI--,SCAKSIIG,I,S01.151,THR,ALA,3,O60256
+...
 ```
+Here the fragment CAKSI was modelled into the 8-mer peptide SCAKSIIG, which is part of the substrate protein with UniProtKB id O60256. The model was done on the protease structure with PDB is 1smf that belongs to the MEROPS family S01.151 (trypsin). In addition, an amino acid from the original structure had to be changes by another one reported in the substrate, in this case a threonine by an alanine in the position 3 of the peptide.
 
-### Model peptides bound to a particular allele
+### Model a peptide based on a substrate containing one non-natural amino acid (NNAA)
 
 To model peptides of interest in an allele with crystal structure available, the user can select from four alleles that have available crystals in the local folder provided. Based on the selection, the script reads the file `list_MHC_crystals.txt` and select the corresponding structure. One way to run the script is as follows:
 
