@@ -1,4 +1,4 @@
-# Modelling and sample protease substrates
+# Modelling and sampling protease substrates
 
 ## Package to model peptide substrates bound to annotated protease structures and run promiscuity analysis
 
@@ -15,20 +15,21 @@ The goal of these scripts is to provide tools for modelling natural substrates b
 - BioPython: https://biopython.org/wiki/Download
 - RDKit: https://github.com/rdkit/rdkit/releases
 - Modeller: https://salilab.org/modeller/download_installation.html
+- DSSP: https://github.com/cmbi/hssp/archive/3.1.4.tar.gz
 - Rosetta Commons: https://www.rosettacommons.org/software/license-and-download
 
-The BioPython and RDKit modules can be installed directly from package repositories. Modeller can be installed freely after obtaining an academic license. For the Rosetta functionalities the recommended is to follow the installation instructions, and take note of the Rosetta version that will be provided in the script.
+The BioPython and RDKit modules can be installed directly from package repositories. Modeller can be installed freely after obtaining an academic license. DSSP require to be compiled using the source code of the latest version. For the Rosetta functionalities the recommended is to follow the installation instructions, and take note of the Rosetta version that will be provided in the script.
 
 ## Extra files and databases required:
 
 To run the modelling script, a file and a database are required to perform the analysis. These are:
 
-1. components.cif (file with information of compounds and modified ligands in the PDB)
-The file can be downloaded from: ftp://ftp.wwpdb.org/pub/pdb/data/monomers/components.cif (272 MB)
+1. components.cif (file with information of compounds and modified ligands in the PDB). The file can be downloaded from: ftp://ftp.wwpdb.org/pub/pdb/data/monomers/components.cif (272 MB)
+
 **NOTE:** Put the file into the auxiliar folder of the code project
 
-2. MEROPS mySQL database (mySQL schema containing the information required to identify enzyme substrates)
-The database can be downloaded from: ftp://ftp.ebi.ac.uk/pub/databases/merops/current_release/meropsweb121.tar.gz (727 MB)
+2. MEROPS mySQL database (mySQL schema containing the information required to identify enzyme substrates). The database can be downloaded from: ftp://ftp.ebi.ac.uk/pub/databases/merops/current_release/meropsweb121.tar.gz (727 MB)
+
 **NOTE:** To install the mysql database you can follow these instructions:
 
 - Enter your mySQL installed engine and run the command:
@@ -87,36 +88,73 @@ The modelling of substrates bound to proteases has two main modes of running. On
 
 In this case, we are allowing the modelling of only 1 substrate per structure available in the dataset bound to peptides with natural amino acids. For this script two families are available: serine and cysteine proteases. Here we selected serine as the reference family. Finally the MEROPS credentials are provided to look for reported substrates
 
-After that, the models will be stored in **models/model_ready** with the name [structure]\_[substrate sequence].pdb, where the structure is the PDB id and the substrate sequence is the peptides that was fully modelled using the protocol. A report of the model is provided in the following form:
+After that, the models will be stored in **models/model_ready** with the name `[structure]\_[substrate sequence].pdb`, where the structure is the PDB id and the substrate sequence is the peptide that was fully modelled using the protocol. A report of the model is provided in the following form:
 ```
 pdb,pepTemplate,pepModel,chain,merops,old_aa,new_aa,pos_aa,uniprot
 1smf,-CAKSI--,SCAKSIIG,I,S01.151,THR,ALA,3,O60256
 ...
 ```
-Here the fragment CAKSI was modelled into the 8-mer peptide SCAKSIIG, which is part of the substrate protein with UniProtKB id O60256. The model was done on the protease structure with PDB is 1smf that belongs to the MEROPS family S01.151 (trypsin). In addition, an amino acid from the original structure had to be changes by another one reported in the substrate, in this case a threonine by an alanine in the position 3 of the peptide.
+Here the fragment CAKSI was modelled into the 8-mer peptide SCAKSIIG, which is part of the substrate protein with UniProtKB id O60256. The model was performed based on the protease structure with PDB is 1smf that belongs to the MEROPS family S01.151 (trypsin). In addition, an amino acid from the original structure had to be changed by another one reported in the substrate, in this case a threonine by an alanine in the position 3 of the peptide.
 
 ### Model a peptide based on a substrate containing one non-natural amino acid (NNAA)
 
-To model peptides of interest in an allele with crystal structure available, the user can select from four alleles that have available crystals in the local folder provided. Based on the selection, the script reads the file `list_MHC_crystals.txt` and select the corresponding structure. One way to run the script is as follows:
+For the second case, we require the modification of a NNAA for a natural amino acid based on a similarity threshold defined by the user (called *complete* in the script). It means that we can model a substrate depending on how similar we want the template and new amino acids should be. The following is an example based on a particular PDB structure available in the dataset:
 
-`python3.5 model_peptides_MHC_complexes.py -l list_peptides.txt -m model -a 0301`
+`python3.5 model_substrate_protease.py -s 1tps -f serine -n 1 -m complete -t 0.4 -u user -p password -d merops`
 
-The file `<sequence>_modelled.pdb` will be generated. In addition, a report with the statistics of the modelling will be created. By default the name of the file is `stats_peptide_models.txt`- However, the name can be changed with the `-o` flag. An example of the report is the following:
+Here we are modelling a substrate based on the template present in the structure with PDB is 1tps. The natural amino acid that will replace the present NNAA require to be at least 40\% similar or more based on Tanimoto comparison of the molecular representations of the amino acid side chains. We selected serine as the reference family, and the MEROPS credentials are also provided to look for reported substrates.
+
+After that, the models will be stored in **models/model_complete** with the name `[structure]\_[substrate sequence]\_modelled.pdb`, where the structure is the PDB id and the substrate sequence is the peptide that was fully modelled using the protocol. A report of the model is provided in the following form:
 
 ```
-Crystal	Allele	Peptide_template	Peptide_model	Core_template	Core_model	Alignment_score	Identities	Identical_pockets
-1t5x	DRB1*01:01	AAYSDQATPLLLSPR	IPTAFSIGKTYKPEE	FSIGKTYKP	YSDQATPLL	0	2	1
-The model was completed
+pdb,pepTemplate,pepModel,chain,merops,old_aa,new_aa,pos_aa,uniprot,sim
+1tps,-LTREL--,FLTRELAE,B,S01.151,DLE,LEU,247,P23396,1.0
 ```
-In addition to the prediction of the cores, the peptides are aligned to evaluate how similar they are, and identities are mapped in the full sequence and in the core region. This is useful to understand how different is the sequence content of the peptides from the available peptide template.
 
-### Run additional sampling using Rosetta Backrub
+Here the fragment LTREL was modelled into the 8-mer peptide FLTRELAE, which is part of the substrate protein with UniProtKB id P23396. The model was performed based on the protease structure with PDB is 1tps that belongs to the MEROPS family S01.151 (trypsin). In addition, a NNAA from the original structure had to be changed by another one reported in the substrate, in this case the residue DLE by an L-Leucine, with a similarity of 100\%.
 
-After modelling the peptides, it is possible to run a simulation of the system using the backrub method from Rosetta. For that purpose, just run the script with the following options:
+### How to run the sampling script
 
-`python3.5 model_peptides_MHC_complexes.py -l list_peptides.txt -m backrub -a 0101`
+After having modelled 8-mer peptides in reference structures, it is possible to call the second script for modelling any peptide of interest, run a simulation of the system using the backrub method from Rosetta and calculate structural descriptors from the trajectory. The basic command line to run the script is:
 
-In that case, the model with the additional simulation will be run in the local computer. The output of the trajectory can be used to calculate any structural descriptor of interest using available packages to study interactions, or calculate other variables such as secondary structures or accessible surface areas, among others.
+`run_dynamic_proteases.py [-h] -p PATH -s SEQUENCE -c CHAIN [-r ROSETTA]`
+                                       
+where the arguments are:
+
+```
+optional arguments:
+  -h, --help   show this help message and exit
+  -p PATH      Path of the structure that will be used to run the analysis
+  -s SEQUENCE  Sequence of the peptide that will be modelled and sampled
+  -c CHAIN     Chain identifier of the peptide in the structure
+  -r ROSETTA   Version of Rosetta that will be implemented
+ ```
+
+The required arguments are the path of the model that we want to use as template, the sequence of the peptide that will be modelled, and the chain of the peptide in the structure of reference. **Please be aware of changing the Rosetta version through the flag or directly in the script by default.**
+
+### Run the sampling of a modelled peptide using Rosetta
+
+To run the dynamic analysis of a peptide of reference, we can call the script in the followin form:
+
+`python run_dynamic_proteases.py -p models/model_ready/1smf_SCAKSIIG_modelled.pdb -s TGYHKLPR -c B`
+
+Here we provide the path of the modelled structure that will be used as reference, the sequence TGYHKLPR of the new peptide, and the chain identifiier of the peptide, which is B in this case. The modelled peptide is subjected to Backrub for a defined number of Monte Carlo steps (this can be changed in the script), and the snapshots are used to calculate per peptide amino acid two structural observables: the accessible surface area using DSSP, and the interaction energy using an interface scoring of Rosetta. The new modelled peptide is stored in the route **dynamic/models**, and the observables per amino acid are stored in the routes **dynamic/observables/asa_[peptide sequence]** and **dynamic/observables/energy_[peptide sequence]**.
+
+The averages per peptide are reported in the file `final_averages_[peptide sequence]`, with the following format for peptide TGYHKLPR:
+
+```
+Amino_acid Position Average_ASA Average_Energy
+THR	1	0.72	-2.57
+GLY	2	0.45	-2.17
+TYR	3	0.28	-6.23
+HIS	4	0.014	-9.59
+LYS	5	0.31	-5.67
+LEU	6	0.28	-4.31
+PRO	7	0.52	-2.12
+ARG	8	1.0	-1.17
+```
+
+The third column represents the average ASA for each amino acid in the peptide, and the four column the average energy. The script can be embedded in a loop to calculate the observable for a set of peptides of interest, as the example of the random libraries mentioned in the publication.
 
 ## Support
 
