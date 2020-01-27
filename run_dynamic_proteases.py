@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
 """
-Package to run dynamic analysus of peptide substrates bound to annotated protease structures
+Package to run dynamic analysis of peptide substrates bound to annotated protease structures
 NOTE: The protocol requires of auxiliary programs and Unix system commands - Tested on Ubuntu 16.04
 
 From publication "Modelling peptide substrates bound to proteases: insights to study binding promiscuity"
-Journal: PLoS Computational Biology
+Journal: BMC Bioinformatics
 Authors: Rodrigo Ochoa, Mikhail Magnitov, Roman Laskowski, Pilar Cossio, Janet Thornton
 Year: 2020
 
@@ -323,11 +323,22 @@ def calculate_observables(pep_to_model,pepChain,rosetta_path):
             # Running score interface
             os.system("{rosetta}/main/source/bin/InterfaceAnalyzer.default.linuxgccrelease -database {rosetta}/main/database/ -in:file:s model_{mod}.pdb -out:file:scorefile score_interface.sc -add_regular_scores_to_scorefile true -pack_input true -pack_separated true -interface A_B".format(rosetta=rosetta_path,mod=str(model_number)))
             
+            # Get the residue number
+            parser = PDBParser()
+            structure = parser.get_structure('REF',"model_{mod}.pdb".format(mod=str(model_number)))
+            model = structure[0]
+            out_structure=model["A"]
+            
+            final_residue=0
+            # Store the numbers of the residues that should be changed
+            for residue in out_structure:
+                final_residue=int(residue.get_full_id()[3][1])
+            
             # Run over the output and store the energies for each residue
             for i,aa in enumerate(pep_to_model):
                 residue=aminoacids[aa]
                 position=position_reference+i
-                bash = "grep _{} model_{}_0001.pdb".format(position+214,str(model_number))
+                bash = "grep _{} model_{}_0001.pdb".format(position+final_residue,str(model_number))
                 output = subprocess.check_output(['bash','-c', bash])
                 energyTotal[residue+str(position)].append(output.strip())
             
@@ -338,7 +349,7 @@ def calculate_observables(pep_to_model,pepChain,rosetta_path):
             p = PDBParser()
             structure = p.get_structure("MODEL", "model_{}.pdb".format(str(model_number)))
             model = structure[0]
-            dssp = DSSP(model, 'model_{}.pdb'.format(str(model_number)), dssp='auxiliar/mkdssp')
+            dssp = DSSP(model, 'model_{}.pdb'.format(str(model_number)), dssp='mkdssp')
             
             # Store the information for each amino acid
             for keys in list(dssp.keys()):
@@ -352,7 +363,7 @@ def calculate_observables(pep_to_model,pepChain,rosetta_path):
             data=line.split()
             if data[0]=="ATOM":
                 if data[4] != compareChain:
-                    new_file_text += 'TER\n'
+                    new_file_text += '\n'
                     compareChain=data[4]    
             if data[0]=="ATOM" or data[0]=="TER":
                 new_file_text += line + '\n'
@@ -427,28 +438,44 @@ def obtain_averages(asaTotal,energyTotal,pep_to_model):
 if __name__ == '__main__':
     
     # Script arguments
-    # parser = argparse.ArgumentParser(description='Package to model peptide substrates bound to annotated protease structures')
-    # parser.add_argument('-l', dest='list_pep', action='store',required=True,
-    #                     help='List with the peptides that want to be analyzed')
-    # parser.add_argument('-m', dest='mode', action='store', default="core",
-    #                     help='Choose a mode to run the script from thee options: 1) core, 2) model, 3) backrub')
-    # parser.add_argument('-r', dest='rosetta', action='store', default="rosetta_src_2016.32.58837_bundle",
-    #                     help='Version of Rosetta that will be implemented')
-    # parser.add_argument('-o', dest='output', action='store', default="stats_peptide_models.txt",
-    #                     help='Name of the output file with the statistics results')
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Package to model peptide substrates bound to annotated protease structures')
+    parser.add_argument('-p', dest='path', action='store',required=True,
+                        help='Path of the structure that will be used to run the analysis')
+    parser.add_argument('-s', dest='sequence', action='store', required=True,
+                        help='Sequence of the peptide that will be modelled and sampled')
+    parser.add_argument('-c', dest='chain', action='store', required=True,
+                        help='Chain identifier of the peptide in the structure')
+    parser.add_argument('-r', dest='rosetta', action='store', default="rosetta_src_2016.32.58837_bundle",
+                        help='Version of Rosetta that will be implemented')
+    args = parser.parse_args()
     
     ####################################################################################
     # Assignment of parameters
-    model="/home/rochoa/Desktop/Rodrigo/Proyectos/Proyecto_Doctorado/Proteases/Script/models/model_complete/1ppg_AAPAAAPP_modelled.pdb"
-    pep1_final="AAPAAAPP"
-    pep2_final=sys.argv[1]
-    pepChain="B"
+    model=args.path
+    pep2_final=args.sequence
+    pepChain=args.chain
+    rosetta_version=args.rosetta
+
+    # Get the sequence of the peptide used as template
+    aminoacids={"ALA":"A","ASP":"D","GLU":"E","PHE":"F","HIS":"H","ILE":"I","LYS":"K","LEU":"L","MET":"M","GLY":"G",
+                "ASN":"N","PRO":"P","GLN":"Q","ARG":"R","SER":"S","THR":"T","VAL":"V","TRP":"W","TYR":"Y","CYS":"C"}
+    pep1_final=""
+    parser = PDBParser()
+    reference = parser.get_structure('REF',model)
+    for chain in reference[0]:
+        if chain.get_id()==pepChain:
+            for residue in chain:
+                seq=aminoacids[residue.get_resname()]
+                pep1_final=pep1_final+str(seq)
     
     # Get the rosetta path
-    rosetta_version="rosetta_src_2016.32.58837_bundle"
     bash = "locate -b {} | head -n1".format(rosetta_version)
     rosetta_path = subprocess.check_output(['bash','-c', bash]).strip()
+    
+    # Create folders in case they do not exist
+    os.system("mkdir dynamic")
+    os.system("mkdir dynamic/models")
+    os.system("mkdir dynamic/observables")
     
     print "Starting modelling of peptide {} ...".format(pep2_final)
     
@@ -467,3 +494,8 @@ if __name__ == '__main__':
     
     # Obtain the final averages and the files with the data
     obtain_averages(asa_data,energy_data,pep2_final)
+    
+    # Move files
+    os.system("mv {}_* dynamic/models".format(pep2_final))
+    os.system("mv asa dynamic/observables/asa_{}".format(pep2_final))
+    os.system("mv energy dynamic/observables/energy_{}".format(pep2_final))

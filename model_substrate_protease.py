@@ -5,7 +5,7 @@ Package to model peptide substrates bound to annotated protease structures
 NOTE: The protocol requires of auxiliary programs and Unix system commands - Tested on Ubuntu 16.04
 
 From publication "Modelling peptide substrates bound to proteases: insights to study binding promiscuity"
-Journal: PLoS Computational Biology
+Journal: BMC Bioinformatics
 Authors: Rodrigo Ochoa, Mikhail Magnitov, Roman Laskowski, Pilar Cossio, Janet Thornton
 Year: 2020
 
@@ -45,6 +45,27 @@ from rdkit.Chem import AllChem
 from rdkit import DataStructs
 import modeller
 from modeller.automodel import *
+
+########################################################################################
+# Extra files and databases to install
+########################################################################################
+
+# 1. components.cif (file with information of compounds and modified ligands in the PDB)
+# The file can be downloaded from: ftp://ftp.wwpdb.org/pub/pdb/data/monomers/components.cif (272 MB)
+# NOTE: Put the file into the auxiliar folder of the code project
+
+# 2. MEROPS mySQL database (mySQL schema containing the information required to identify enzyme substrates)
+# The database can be downloaded from: ftp://ftp.ebi.ac.uk/pub/databases/merops/current_release/meropsweb121.tar.gz (727 MB)
+# NOTE: To install the mysql database you can follow these instructions:
+# - Enter your mySQL installed engine and run the command:
+#
+# mysql> CREATE DATABASE merops;
+#
+# - Then from the command line, import the schema as:
+#
+# mysql -u username -p merops < merops.sql (you can put here your user name and the password after prompted in the terminal)
+#
+# The user, password and MEROPS database name should be provided in the script to run the analysis succesfully
 
 ########################################################################################
 # Functions
@@ -195,17 +216,38 @@ def modelling_fragment(pdb,pep_chain,pepT,pepM,rosetta_path,folder_path,new_aa=N
     a.ending_model  = 1
     a.make()
     
-    # Relaxing of the final complex
-    os.system("{}/main/source/bin/relax.default.linuxgccrelease -database {}/main/database -in:file:s {}_fill.B99990001.pdb -relax:thorough -relax:bb_move false".format(rosetta_path,rosetta_path,code))
+    # Create resfile
+    rosetta_config_file=open("resfile.config","wb")
+    rosetta_config_file.write("NATRO\n")
+    rosetta_config_file.write("start\n")
+    rosetta_config_file.close()
+
+    # Renumbering of the chain residues
+    os.system("{}/main/source/bin/fixbb.default.linuxgccrelease -in:file:s {}_fill.B99990001.pdb -resfile resfile.config -renumber_pdb -per_chain_renumbering".format(rosetta_path,code))
     parser = PDBParser()
     structure = parser.get_structure('REF',"{}_fill.B99990001_0001.pdb".format(code))
+    io = PDBIO()
+    io.set_structure(structure)
+    io.save("pre-post-modelled.pdb")
+    
+    # Relaxing of the final complex
+    os.system("{}/main/source/bin/relax.default.linuxgccrelease -database {}/main/database -in:file:s pre-post-modelled.pdb -relax:thorough -relax:bb_move false".format(rosetta_path,rosetta_path))
+    parser = PDBParser()
+    structure = parser.get_structure('REF',"pre-post-modelled_0001.pdb")
     io = PDBIO()
     io.set_structure(structure)
     io.save("post-modelled.pdb")
     
     # Deleter temporal files and save final model in the route of interest
-    os.system("rm {}* score.sc resfile.config alignment.ali ".format(code))
-    os.system("mv post-modelled.pdb models/{}/{}_{}_modelled.pdb".format(folder_path,pdb,pepM))    
+    os.system("rm {}* score.sc resfile.config alignment.ali pre-post-modelled*".format(code))
+    os.system("mv post-modelled.pdb models/{}/{}_{}_modelled.pdb".format(folder_path,pdb,pepM))
+    
+    # Delete temporal files
+    if new_aa:
+        os.system('rm models/{}/{}_{}_modelled.pdb .'.format(folder_path,pdb,new_aa))
+        os.system('rm models/{}/{}_relaxed.pdb .'.format(folder_path,pdb))
+    else:
+        os.system('rm models/{}/{}_relaxed.pdb .'.format(folder_path,pdb))
 
 ##################################################################################
 
@@ -812,53 +854,187 @@ def run_model_complete(model,rosetta_path,folder_path):
 if __name__ == '__main__':
     
     # Script arguments
-    # parser = argparse.ArgumentParser(description='Package to model peptide substrates bound to annotated protease structures')
-    # parser.add_argument('-l', dest='list_pep', action='store',required=True,
-    #                     help='List with the peptides that want to be analyzed')
-    # parser.add_argument('-m', dest='mode', action='store', default="core",
-    #                     help='Choose a mode to run the script from thee options: 1) core, 2) model, 3) backrub')
-    # parser.add_argument('-r', dest='rosetta', action='store', default="rosetta_src_2016.32.58837_bundle",
-    #                     help='Version of Rosetta that will be implemented')
-    # parser.add_argument('-o', dest='output', action='store', default="stats_peptide_models.txt",
-    #                     help='Name of the output file with the statistics results')
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Package to model peptide substrates bound to annotated protease structures')
+    parser.add_argument('-s', dest='structure', action='store',default='none',
+                        help='Add a protease structure PDB id to see if it is possible to model substrates')
+    parser.add_argument('-f', dest='family', action='store',default='serine',
+                        help='Select the family of proteases used as reference to model the substrates from 1) serine, 2) cysteine')
+    parser.add_argument('-n', dest='max_substrates', action='store',default=1,
+                        help='Define the maximum number of substrates that can be modelled per structure available')
+    parser.add_argument('-m', dest='mode', action='store', default="ready",
+                        help='Choose a mode to run the script from two options: 1) ready, 2) complete. Ready are the peptide templates with natural amino acids, and Complete are the peptides containing at least one amino acid')
+    parser.add_argument('-t', dest='sim_threshold', action='store',default=0.4,
+                        help='Similarity threshold to decide which amino acid will replace the NNAA present in the template')
+    parser.add_argument('-r', dest='rosetta', action='store', default="rosetta_src_2016.32.58837_bundle",
+                        help='Version of Rosetta that will be implemented')
+    parser.add_argument('-u', dest='user', action='store', required=True,
+                        help='User to access the local installation of the MEROPS database')
+    parser.add_argument('-p', dest='password', action='store', required=True,
+                        help='Password to access the local installation of the MEROPS database')
+    parser.add_argument('-d', dest='database', action='store', required=True,
+                        help='Name of the local installation of the MEROPS database')
+    args = parser.parse_args()
     
     ####################################################################################
     # Assignment of parameters
-    rosetta_version="rosetta_src_2016.32.58837_bundle"
+    
+    # Rosetta version installed in the computer
+    rosetta_version=args.rosetta
     bash = "locate -b {} | head -n1".format(rosetta_version)
     rosetta_path = subprocess.check_output(['bash','-c', bash]).strip()
     
-    # MySQL data
-    # NOTE: Change based on the local installation of the MEROPS database
-    user="root"
-    password="biotd2019"
-    database="merops"
+    # MySQL data. NOTE: it depends on the local installation of the MEROPS database. See EXTRA FILES section at the beginning of the script
+    user=args.user
+    password=args.password
+    database=args.database
     
     # Obtain the dictionaries from the csv file of interest
-    ready,model=map_peptides('auxiliar/serine_proteases_pockets.csv')
+    family=args.family
+    if family=="serine":
+        ready,model=map_peptides('auxiliar/serine_proteases_pockets.csv')
+    if family=="cysteine":
+        ready,model=map_peptides('auxiliar/cysteine_proteases_pockets.csv')
+    
+    #print ready
+    mode_modelling=args.mode
+    struct=args.structure.lower()
+    sim_threshold=args.sim_threshold
+    max_subs=int(args.max_substrates)
+    
+    # Create folders in case they do not exist
+    os.system("mkdir models")
+    os.system("mkdir models/model_ready")
+    os.system("mkdir models/model_complete")
+    
+    # Check if the mode of modelling is for structures having all natural amino acids
+    if mode_modelling=="ready":
+        # Check the structure 
+        if struct!="none":
+            if struct in ready:
+                print("The structure {} is present in the annotated set".format(struct))
+                # Run the modelling process for the complexes with natural amino acids
+                list_to_model=modelling(ready,user,password,database)
+                print("######################")
+                # Check if the model is in the list of structures that can be modelled
+                flag_stop=1
+                for m in list_to_model:
+                    protein=m[0]
+                    if struct==protein: flag_stop=0
                 
-    # Run the modelling process for the complexes with NNAAs
-    sim_threshold=0.4
-    list_to_model=modelling_complete(model,sim_threshold,user,password,database) # PENDING READY
-    print("######################")
-    print(list_to_model)
-    
-    # Iterate over the elements of the list. Here the user can decide which models want to generate based on the list content
-    # NOTE: This part should be modified to preselect the models based on the required criteria
-    # Example just running the first element
-    for model in list_to_model:
-        run_model_complete(model,rosetta_path,"model_complete")
-        break
-    
-    # # Run the modelling process for the complexes with natural amino acids
-    # list_to_model=modelling(ready,user,password,database)
-    # print("######################")
-    # print(list_to_model)
-    # 
-    # # Iterate over the elements of the list. Here the user can decide which models want to generate based on the list content
-    # # NOTE: This part should be modified to preselect the models based on the required criteria
-    # # Example just running the first element
-    # for model in list_to_model:
-    #     run_model(model,rosetta_path,"model_ready")
-    #     break
+                # Check the flag and report the message
+                if flag_stop==1:
+                    print("The structure {} does not have substrate available to do the modelling".format(struct))
+                    print("Exiting ...")
+                    exit()
+                else:
+                    print("The structure {} has substrates available to do the modelling".format(struct))
+            # The structure is not in the original dataset
+            else:
+                print("The structure {} is not available in the annotated set and the modelling will stop".format(struct))
+                print("Exiting ...")
+                exit()
+        else:
+            # Run the modelling process for the complexes with natural amino acids
+            list_to_model=modelling(ready,user,password,database)
+            print("######################")
+            print(list_to_model)
+                
+        # Move to model the substrate if there is information available
+        # Case where the pdb structure is directly provided in the script
+        if struct!="none":
+            counter=1
+            for m in list_to_model:
+                protein=m[0]
+                if struct==protein:
+                    # Check the maximum number of structures required per protein
+                    if counter <= max_subs:
+                        run_model(m,rosetta_path,"model_ready")
+                        counter+=1
+                    else:
+                        print("The number of models required for {} has been completed".format(struct))
+                        print("Exiting ...")
+                        exit()
+        else:
+            # General case where an n number of models is generated per structure
+            counter_proteins={}
+            prot_ref=""
+            for m in list_to_model:
+                protein=m[0]
+                if protein!=prot_ref: counter=1
+                prot_ref=protein
+                counter_proteins[protein]=counter
+                # Check the maximum number of structures required per protein
+                if counter_proteins[protein] <= max_subs:
+                    run_model(m,rosetta_path,"model_ready")
+                    counter+=1
+                else:
+                    print("The number of models required for {} has been completed".format(struct))
+                    print("Exiting ...")
+                    exit()
+
+    # Check if the mode of modelling is for structures having one NNAA to replace by    
+    if mode_modelling=="complete":
+        #print("Chao")
+        # Check the structure 
+        if struct!="none":
+            if struct in model:
+                print("The structure {} is present in the annotated set".format(struct))
+                # Run the modelling process for the complexes with NNAAs
+                list_to_model=modelling_complete(model,sim_threshold,user,password,database)
+                print("######################")
+                # Check if the model is in the list of structures that can be modelled
+                flag_stop=1
+                for m in list_to_model:
+                    protein=m[0]
+                    if struct==protein: flag_stop=0
+                
+                # Check the flag and report the message
+                if flag_stop==1:
+                    print("The structure {} does not have substrate available to do the modelling".format(struct))
+                    print("Exiting ...")
+                    exit()
+                else:
+                    print("The structure {} has substrates available to do the modelling".format(struct))
+            # The structure is not in the original dataset
+            else:
+                print("The structure {} is not available in the annotated set and the modelling will stop".format(struct))
+                print("Exiting ...")
+                exit()
+        else:
+            # Run the modelling process for the complexes with NNAAs
+            list_to_model=modelling_complete(model,sim_threshold,user,password,database) # PENDING READY
+            print("######################")
+            print(list_to_model)
+        
+        # Move to model the substrate if there is information available
+        # Case where the pdb structure is directly provided in the script
+        if struct!="none":
+            counter=1
+            for m in list_to_model:
+                protein=m[0]
+                if struct==protein:
+                    # Check the maximum number of structures required per protein
+                    if counter <= max_subs:
+                        run_model_complete(m,rosetta_path,"model_complete")
+                        counter+=1
+                    else:
+                        print("The number of models required for {} has been completed".format(struct))
+                        print("Exiting ...")
+                        exit()
+        else:
+            # General case where an n-number of models is generated per structure
+            counter_proteins={}
+            prot_ref=""
+            for m in list_to_model:
+                protein=m[0]
+                if protein!=prot_ref: counter=1
+                prot_ref=protein
+                counter_proteins[protein]=counter
+                # Check the maximum number of structures required per protein
+                if counter_proteins[protein] <= max_subs:
+                    run_model_complete(m,rosetta_path,"model_complete")
+                    counter+=1
+                else:
+                    print("The number of models required for {} has been completed".format(struct))
+                    print("Exiting ...")
+                    exit()
