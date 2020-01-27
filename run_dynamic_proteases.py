@@ -67,7 +67,7 @@ def replace_amino_acid(pep_pdb,pep_chain,old_aa,new_aa,pep_position):
     
     # Report the mutation made
     message="The residue {} in chain {} and position {} will be changed by {}".format(old_aa,pep_chain,pep_position,new_aa)
-    print message
+    print(message)
     
     # Rename the residue
     chain[pep_position].resname=aminoacids[new_aa]
@@ -157,7 +157,7 @@ def mutateRosetta(pep_chain,new_aa,pep_position,rosetta_path):
     """
     
     # Creation of the Rosetta configuration file
-    rosetta_config_file=open("resfile.config","wb")
+    rosetta_config_file=open("resfile.config","w")
     rosetta_config_file.write("NATRO\n")
     rosetta_config_file.write("start\n")
     rosetta_config_file.write("\t{} {} PIKAA {} EX 1 EX 2 EX 3 EX 4 EX_CUTOFF 0\n".format(pep_position,pep_chain,new_aa))
@@ -205,7 +205,7 @@ def modelling(mutList,model,pep_to_model,pepChain,rosetta_path):
         
         # Run the mutations only if there are not amino acids to insert. In this case this happen always
         if old_aa != "X" and new_aa != "X":
-            print mut
+            print(mut)
             if counter_step==0:
                 parser = PDBParser()
                 reference = parser.get_structure('REF',"{}".format(model))
@@ -393,6 +393,7 @@ def obtain_averages(asaTotal,energyTotal,pep_to_model):
     
     # File with the final averages
     final_averages=open("final_averages_{}.txt".format(pep_to_model),"w")
+    final_averages.write("Amino_acid\tPosition\tAverage_ASA\tAverage_Energy\n")
     position_reference=1
     
     # Iterate over the peptide amino acids
@@ -406,10 +407,10 @@ def obtain_averages(asaTotal,energyTotal,pep_to_model):
         
         # Write the values
         for value in asaTotal[residue+str(position)]:
-            fileAsa.write(value+"\n")
+            fileAsa.write(str(value)+"\n")
               
         for value in energyTotal[residue+str(position)]:
-            fileEnergy.write(value+"\n")
+            fileEnergy.write(str(value)+"\n")
         
         # Close the files
         fileAsa.close()
@@ -470,14 +471,14 @@ if __name__ == '__main__':
     
     # Get the rosetta path
     bash = "locate -b {} | head -n1".format(rosetta_version)
-    rosetta_path = subprocess.check_output(['bash','-c', bash]).strip()
+    rosetta_path = subprocess.check_output(['bash','-c', bash]).strip().decode("utf-8")
     
     # Create folders in case they do not exist
     os.system("mkdir dynamic")
     os.system("mkdir dynamic/models")
     os.system("mkdir dynamic/observables")
     
-    print "Starting modelling of peptide {} ...".format(pep2_final)
+    print("Starting modelling of peptide {} ...".format(pep2_final))
     
     # Generate the list of mutations and shuffle the order
     mutList=generateMutations(pep1_final,pep2_final)

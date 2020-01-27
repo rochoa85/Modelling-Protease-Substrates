@@ -217,7 +217,7 @@ def modelling_fragment(pdb,pep_chain,pepT,pepM,rosetta_path,folder_path,new_aa=N
     a.make()
     
     # Create resfile
-    rosetta_config_file=open("resfile.config","wb")
+    rosetta_config_file=open("resfile.config","w")
     rosetta_config_file.write("NATRO\n")
     rosetta_config_file.write("start\n")
     rosetta_config_file.close()
@@ -881,7 +881,7 @@ if __name__ == '__main__':
     # Rosetta version installed in the computer
     rosetta_version=args.rosetta
     bash = "locate -b {} | head -n1".format(rosetta_version)
-    rosetta_path = subprocess.check_output(['bash','-c', bash]).strip()
+    rosetta_path = subprocess.check_output(['bash','-c', bash]).strip().decode("utf-8")
     
     # MySQL data. NOTE: it depends on the local installation of the MEROPS database. See EXTRA FILES section at the beginning of the script
     user=args.user
@@ -895,7 +895,7 @@ if __name__ == '__main__':
     if family=="cysteine":
         ready,model=map_peptides('auxiliar/cysteine_proteases_pockets.csv')
     
-    #print ready
+    # Assign parameters
     mode_modelling=args.mode
     struct=args.structure.lower()
     sim_threshold=args.sim_threshold
@@ -974,7 +974,6 @@ if __name__ == '__main__':
 
     # Check if the mode of modelling is for structures having one NNAA to replace by    
     if mode_modelling=="complete":
-        #print("Chao")
         # Check the structure 
         if struct!="none":
             if struct in model:
