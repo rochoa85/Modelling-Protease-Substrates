@@ -1,8 +1,8 @@
 # Modelling and sampling of protease substrates
 
-## Package to model peptide substrates bound to annotated protease structures and run promiscuity analysis
+## Package to model peptide substrates bound to annotated protease structures
 
-* From publication *"Modelling peptide substrates bound to proteases: insights to study binding promiscuity"*
+* From publication *"Modelling peptide substrates bound to proteases: insights to study binding recognition"*
 * BMC Bioinformatics, 2020
 * Authors: Rodrigo Ochoa, Mikhail Magnitov, Roman A. Laskowski, Pilar Cossio, Janet M. Thornton
 
