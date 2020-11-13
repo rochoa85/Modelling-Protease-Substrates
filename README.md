@@ -12,13 +12,26 @@ The goal of these scripts is to provide tools for modelling natural substrates b
 
 ## Third-party tools required:
 
+Three of the required tools can be installed from the source code or through creating a conda environment:
+
 - BioPython: https://biopython.org/wiki/Download
 - RDKit: https://github.com/rdkit/rdkit/releases
 - Modeller: https://salilab.org/modeller/download_installation.html
+
+The BioPython and RDKit modules can be also installed directly from package repositories. Modeller can be installed freely after obtaining an academic license. However, with the following commands you can create a virtual environment with conda:
+
+```
+conda config --add channels salilab
+conda create -c rdkit -n model-prot rdkit biopython matplotlib scipy pip modeller
+source activate model-prot
+```
+
+For the other two packages, it is recommended to compile the source code:
+
 - DSSP: https://github.com/cmbi/hssp/releases
 - Rosetta Commons: https://www.rosettacommons.org/software/license-and-download
 
-The BioPython and RDKit modules can be installed directly from package repositories. Modeller can be installed freely after obtaining an academic license. DSSP requires to be compiled using the source code of the latest version. For the Rosetta functionalities, the recommended is to follow the installation instructions and take note of the Rosetta version that will be provided in the script.
+DSSP requires to be compiled using the source code of the latest version. For the Rosetta functionalities, the recommended is to follow the installation instructions and take note of the Rosetta version that will be provided in the script.
 
 ## Extra files and databases required:
 
