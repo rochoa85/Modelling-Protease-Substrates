@@ -2,7 +2,7 @@
 
 ## Package to model peptide substrates bound to annotated protease structures
 
-* From publication *"Modelling peptide substrates bound to proteases: insights to study binding recognition"*
+* From publication *"An automated protocol for modelling peptide substrates to proteases"*
 * BMC Bioinformatics, 2020
 * Authors: Rodrigo Ochoa, Mikhail Magnitov, Roman A. Laskowski, Pilar Cossio, Janet M. Thornton
 
