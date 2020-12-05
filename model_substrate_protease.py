@@ -4,7 +4,7 @@
 Package to model peptide substrates bound to annotated protease structures
 NOTE: The protocol requires of auxiliary programs and Unix system commands - Tested on Ubuntu 16.04
 
-From publication "Modelling peptide substrates bound to proteases: insights to study binding promiscuity"
+From publication "An automated protocol for modelling peptide substrates to proteases"
 Journal: BMC Bioinformatics
 Authors: Rodrigo Ochoa, Mikhail Magnitov, Roman Laskowski, Pilar Cossio, Janet Thornton
 Year: 2020
